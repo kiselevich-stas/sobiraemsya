@@ -5,13 +5,13 @@ import App from '@/App.vue';
 import { router } from '@/router';
 import { useEventsStore } from '@/stores/events.store';
 import {
-    getTelegramStartParam,
+    getTelegramStartPayload,
     isTelegramLaunchUrl,
 } from '@/utils/telegramStartParam';
 
 import '@/assets/styles/main.scss';
 
-const initialTelegramEventId = getTelegramStartParam();
+const initialTelegramPayload = getTelegramStartPayload();
 const initialIsTelegramLaunchUrl = isTelegramLaunchUrl();
 
 const app = createApp(App);
@@ -23,11 +23,22 @@ app.use(router);
 useEventsStore(pinia).hydrate();
 
 router.isReady().then(() => {
-    if (initialTelegramEventId) {
+    if (initialTelegramPayload?.type === 'event') {
         router.replace({
             name: 'event',
             params: {
-                id: initialTelegramEventId,
+                id: initialTelegramPayload.id,
+            },
+        });
+
+        return;
+    }
+
+    if (initialTelegramPayload?.type === 'session') {
+        router.replace({
+            name: 'create-event',
+            query: {
+                sessionId: initialTelegramPayload.id,
             },
         });
 

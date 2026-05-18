@@ -1,4 +1,5 @@
 const EVENT_ID_PREFIX = 'event_';
+const SESSION_ID_PREFIX = 'session_';
 
 const TELEGRAM_LAUNCH_KEYS = [
     'tgWebAppData',
@@ -8,8 +9,36 @@ const TELEGRAM_LAUNCH_KEYS = [
     'tgWebAppStartParam',
 ];
 
-const isEventId = (value: string | null): value is string => {
-    return Boolean(value && value.startsWith(EVENT_ID_PREFIX));
+export type TelegramStartPayload =
+    | {
+    type: 'event';
+    id: string;
+}
+    | {
+    type: 'session';
+    id: string;
+};
+
+const parseStartPayload = (value: string | null): TelegramStartPayload | null => {
+    if (!value) {
+        return null;
+    }
+
+    if (value.startsWith(EVENT_ID_PREFIX)) {
+        return {
+            type: 'event',
+            id: value,
+        };
+    }
+
+    if (value.startsWith(SESSION_ID_PREFIX)) {
+        return {
+            type: 'session',
+            id: value,
+        };
+    }
+
+    return null;
 };
 
 const getNormalizedHashParams = () => {
@@ -40,7 +69,7 @@ export const isTelegramLaunchUrl = () => {
     });
 };
 
-export const getTelegramStartParam = () => {
+export const getTelegramStartPayload = (): TelegramStartPayload | null => {
     if (typeof window === 'undefined') {
         return null;
     }
@@ -48,8 +77,10 @@ export const getTelegramStartParam = () => {
     const telegramStartParam =
         window.Telegram?.WebApp?.initDataUnsafe?.start_param ?? null;
 
-    if (isEventId(telegramStartParam)) {
-        return telegramStartParam;
+    const payloadFromTelegram = parseStartPayload(telegramStartParam);
+
+    if (payloadFromTelegram) {
+        return payloadFromTelegram;
     }
 
     const searchParams = new URLSearchParams(window.location.search);
@@ -58,8 +89,10 @@ export const getTelegramStartParam = () => {
         searchParams.get('tgWebAppStartParam') ??
         searchParams.get('startapp');
 
-    if (isEventId(queryStartParam)) {
-        return queryStartParam;
+    const payloadFromQuery = parseStartPayload(queryStartParam);
+
+    if (payloadFromQuery) {
+        return payloadFromQuery;
     }
 
     const hashParams = getNormalizedHashParams();
@@ -68,9 +101,5 @@ export const getTelegramStartParam = () => {
         hashParams.get('tgWebAppStartParam') ??
         hashParams.get('startapp');
 
-    if (isEventId(hashStartParam)) {
-        return hashStartParam;
-    }
-
-    return null;
+    return parseStartPayload(hashStartParam);
 };
