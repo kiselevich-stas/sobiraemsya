@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { publishTelegramEventCard } from '@/services/telegram.repository';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -51,6 +52,8 @@ const isSubmitting = ref(false);
 
 const canSubmit = computed(() => title.value.trim().length > 1);
 
+const telegramPublishError = ref<string | null>(null);
+
 watch(
     selectedTemplate,
     (template) => {
@@ -84,6 +87,7 @@ const createEvent = async () => {
   }
 
   isSubmitting.value = true;
+  telegramPublishError.value = null;
 
   try {
     const event = await eventsStore.createEvent({
@@ -100,6 +104,21 @@ const createEvent = async () => {
       },
       items: items.value,
     });
+
+    if (telegramSessionId.value) {
+      const publishResult = await publishTelegramEventCard({
+        eventId: event.id,
+        sessionId: telegramSessionId.value,
+      });
+
+      if (publishResult.error) {
+        telegramPublishError.value = publishResult.error;
+
+        window.alert(
+            `Сбор создан, но карточку в Telegram-чат отправить не удалось: ${publishResult.error}`,
+        );
+      }
+    }
 
     router.push(`/event/${event.id}`);
   } finally {
@@ -139,7 +158,10 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </AppCard>
-
+      <AppCard v-if="telegramPublishError" class="telegram-publish-error">
+        <strong>Карточка не отправилась в Telegram</strong>
+        <p>{{ telegramPublishError }}</p>
+      </AppCard>
       <AppCard>
         <div class="template-preview">
           <span>{{ selectedTemplate.emoji }}</span>
@@ -318,4 +340,23 @@ onBeforeUnmount(() => {
   font-size: 13px;
   line-height: 1.45;
 }
+
+.telegram-publish-error {
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+
+.telegram-publish-error strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.telegram-publish-error p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 </style>
