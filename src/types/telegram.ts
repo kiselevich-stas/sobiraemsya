@@ -31,6 +31,7 @@ export interface TelegramWebApp {
   initData: string;
   initDataUnsafe?: {
     user?: TelegramWebAppUser;
+    start_param?: string;
   };
   colorScheme?: 'light' | 'dark';
   platform?: string;

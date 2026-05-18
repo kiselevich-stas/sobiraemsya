@@ -36,16 +36,28 @@ export const decodeEventSnapshot = (snapshot: string): EventData | null => {
   }
 };
 
-export const createShareUrl = (event: EventData, options: { includeSnapshot?: boolean } = {}) => {
-  const origin = window.location.origin;
-  const path = `/event/${event.id}`;
+export const createShareUrl = (
+    event: EventData,
+    options: { includeSnapshot?: boolean } = {},
+) => {
+  const fallbackPath = `/#/event/${event.id}`;
 
-  if (!options.includeSnapshot) {
-    return `${origin}${path}`;
+  if (options.includeSnapshot) {
+    const snapshot = encodeEventSnapshot(event);
+
+    return `${window.location.origin}${fallbackPath}?data=${snapshot}`;
   }
 
-  const snapshot = encodeEventSnapshot(event);
-  return `${origin}${path}?data=${snapshot}`;
+  const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME?.trim();
+  const appShortName = import.meta.env.VITE_TELEGRAM_APP_SHORT_NAME?.trim();
+
+  if (botUsername && appShortName) {
+    const normalizedBotUsername = botUsername.replace('@', '');
+
+    return `https://t.me/${normalizedBotUsername}/${appShortName}?startapp=${encodeURIComponent(event.id)}`;
+  }
+
+  return `${window.location.origin}${fallbackPath}`;
 };
 
 export const generateEventCard = (event: EventData, eventUrl: string) => {
