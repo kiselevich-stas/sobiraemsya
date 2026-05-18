@@ -3,10 +3,10 @@ import { onMounted } from 'vue';
 import { RouterView } from 'vue-router';
 import { useTelegramWebApp } from '@/composables/useTelegramWebApp';
 
-const { initTelegram } = useTelegramWebApp();
+const { initTelegramApp } = useTelegramWebApp();
 
 onMounted(() => {
-  initTelegram();
+  initTelegramApp();
 });
 </script>
 

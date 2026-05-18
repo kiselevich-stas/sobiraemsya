@@ -1,86 +1,93 @@
-import { computed, onMounted, ref } from 'vue';
-import type { CurrentUser } from '@/types/event';
-import type { TelegramWebApp } from '@/types/telegram';
+import { computed } from 'vue';
 
-const webApp = ref<TelegramWebApp | null>(null);
+import type { TelegramWebApp, TelegramWebAppUser } from '@/types/telegram';
+
+const getTelegramWebApp = (): TelegramWebApp | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return window.Telegram?.WebApp ?? null;
+};
 
 export const useTelegramWebApp = () => {
-  const isTelegram = computed(() => Boolean(webApp.value));
+  const webApp = computed(() => getTelegramWebApp());
 
-  const currentUser = computed<CurrentUser | null>(() => {
-    const user = webApp.value?.initDataUnsafe?.user;
-
-    if (!user) {
-      return null;
-    }
-
-    const nameParts = [user.first_name, user.last_name].filter(Boolean);
-    const name = nameParts.length > 0 ? nameParts.join(' ') : user.username ? `@${user.username}` : 'Гость';
-
-    return {
-      id: `tg_${user.id}`,
-      telegramId: user.id,
-      name,
-    };
+  const isTelegram = computed(() => {
+    return Boolean(webApp.value);
   });
 
-  const initTelegram = () => {
-    if (typeof window === 'undefined') {
+  const telegramUser = computed<TelegramWebAppUser | null>(() => {
+    return webApp.value?.initDataUnsafe?.user ?? null;
+  });
+
+  const initTelegramApp = () => {
+    const telegramWebApp = getTelegramWebApp();
+
+    if (!telegramWebApp) {
       return;
     }
 
-    webApp.value = window.Telegram?.WebApp ?? null;
-
-    if (webApp.value) {
-      webApp.value.ready();
-      webApp.value.expand();
-    }
+    telegramWebApp.ready?.();
+    telegramWebApp.expand?.();
   };
 
-  const showBackButton = (callback: () => void) => {
-    const backButton = webApp.value?.BackButton;
-    if (!backButton) {
-      return () => undefined;
-    }
+  const showMainButton = (
+      text: string,
+      onClick: () => void,
+  ) => {
+    const telegramWebApp = getTelegramWebApp();
+    const mainButton = telegramWebApp?.MainButton;
 
-    backButton.show();
-    backButton.onClick(callback);
-
-    return () => {
-      backButton.offClick(callback);
-      backButton.hide();
-    };
-  };
-
-  const setMainButton = (text: string, callback: () => void, isActive = true) => {
-    const mainButton = webApp.value?.MainButton;
     if (!mainButton) {
-      return () => undefined;
+      return () => {};
     }
 
     mainButton.setText(text);
-    if (isActive) {
-      mainButton.enable();
-    } else {
-      mainButton.disable();
-    }
     mainButton.show();
-    mainButton.onClick(callback);
+    mainButton.onClick(onClick);
 
     return () => {
-      mainButton.offClick(callback);
+      mainButton.offClick(onClick);
       mainButton.hide();
     };
   };
 
-  onMounted(initTelegram);
+  const showBackButton = (onClick: () => void) => {
+    const telegramWebApp = getTelegramWebApp();
+    const backButton = telegramWebApp?.BackButton;
+
+    if (!backButton) {
+      return () => {};
+    }
+
+    backButton.show();
+    backButton.onClick(onClick);
+
+    return () => {
+      backButton.offClick(onClick);
+      backButton.hide();
+    };
+  };
+
+  const openTelegramLink = (url: string) => {
+    const telegramWebApp = getTelegramWebApp();
+
+    if (telegramWebApp?.openTelegramLink) {
+      telegramWebApp.openTelegramLink(url);
+      return;
+    }
+
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   return {
     webApp,
     isTelegram,
-    currentUser,
-    initTelegram,
+    telegramUser,
+    initTelegramApp,
+    showMainButton,
     showBackButton,
-    setMainButton,
+    openTelegramLink,
   };
 };
