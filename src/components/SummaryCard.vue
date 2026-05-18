@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import AppButton from '@/components/AppButton.vue';
 import AppCard from '@/components/AppCard.vue';
 import type { EventData } from '@/types/event';
 import { useClipboard } from '@/composables/useClipboard';
@@ -11,34 +10,42 @@ const props = defineProps<{
   event: EventData;
 }>();
 
-const { isCopied, copyText } = useClipboard();
+const { copyText } = useClipboard();
 
-const shareUrl = computed(() => {
+const siteUrl = computed(() => {
   return createShareUrl(props.event, {
     includeSnapshot: !isRemoteStorageEnabled(),
   });
 });
-const cardText = computed(() => generateEventCard(props.event, shareUrl.value));
 
-const copyCard = async () => {
-  await copyText(cardText.value);
+const telegramUrl = computed(() => {
+  return createShareUrl(props.event, {
+    telegram: true,
+  });
+});
+
+const siteCardText = computed(() => {
+  return generateEventCard(props.event, siteUrl.value);
+});
+
+const telegramCardText = computed(() => {
+  return generateEventCard(props.event, telegramUrl.value);
+});
+
+const copySiteUrl = async () => {
+  await copyText(siteUrl.value);
 };
 
-const copyLink = async () => {
-  await copyText(shareUrl.value);
+const copyTelegramUrl = async () => {
+  await copyText(telegramUrl.value);
 };
 
-const shareCard = async () => {
-  if (navigator.share) {
-    await navigator.share({
-      title: props.event.title,
-      text: cardText.value,
-      url: shareUrl.value,
-    });
-    return;
-  }
+const copySiteCard = async () => {
+  await copyText(siteCardText.value);
+};
 
-  await copyCard();
+const copyTelegramCard = async () => {
+  await copyText(telegramCardText.value);
 };
 </script>
 
@@ -47,21 +54,57 @@ const shareCard = async () => {
     <div class="section-heading">
       <div>
         <h2>Итоговая карточка</h2>
-        <p>Скопируй текст и отправь его в Telegram-чат.</p>
       </div>
     </div>
 
-    <textarea class="summary-textarea" :value="cardText" readonly />
-
     <div class="summary-link">
-      <span>Ссылка на сбор</span>
-      <code>{{ shareUrl }}</code>
+      <div>
+        <span>Ссылка на сбор</span>
+        <code>{{ siteUrl }}</code>
+      </div>
+
+      <button type="button" class="copy-button" @click="copySiteUrl">
+        📋
+      </button>
     </div>
 
-    <div class="summary-actions">
-      <AppButton @click="copyCard">{{ isCopied ? 'Скопировано' : 'Скопировать текст' }}</AppButton>
-      <AppButton variant="secondary" @click="shareCard">Поделиться</AppButton>
-      <AppButton variant="ghost" @click="copyLink">Скопировать ссылку</AppButton>
+    <div class="summary-link">
+      <div>
+        <span>Ссылка для Telegram</span>
+        <code>{{ telegramUrl }}</code>
+      </div>
+
+      <button type="button" class="copy-button" @click="copyTelegramUrl">
+        📋
+      </button>
     </div>
   </AppCard>
 </template>
+
+<style class="scss" scoped>
+.summary-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.summary-link > div {
+  min-width: 0;
+}
+
+.summary-link code {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-button {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 20px;
+}
+</style>

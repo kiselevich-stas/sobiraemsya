@@ -157,6 +157,7 @@ onBeforeUnmount(() => {
       <ParticipantsSection :event="event" :telegram-user="telegramUser" @save="saveParticipant" />
       <ItemsSection :event="event" :current-user="activeUser || telegramUser" @assign="assignItem" @change-status="changeItemStatus" />
       <MoneySection :event="event" @toggle-paid="togglePaid" />
+      <SummaryCard :event="event" />
       <DonationBlock />
     </template>
 

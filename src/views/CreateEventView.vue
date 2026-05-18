@@ -139,12 +139,6 @@ onBeforeUnmount(() => {
   <main class="page">
     <AppHeader title="Новый сбор" subtitle="Настрой событие за пару минут" />
 
-    <SyncStatusBanner
-        :is-syncing="eventsStore.isSyncing"
-        :sync-error="eventsStore.syncError"
-        :last-synced-at="eventsStore.lastSyncedAt"
-    />
-
     <form class="create-form" @submit.prevent="createEvent">
       <AppCard v-if="telegramSessionId" class="telegram-session-card">
         <div class="telegram-session-card__content">
