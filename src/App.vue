@@ -11,5 +11,9 @@ onMounted(() => {
 </script>
 
 <template>
-  <RouterView />
+  <RouterView v-slot="{ Component }">
+    <Transition name="page-transition" mode="out-in">
+      <component :is="Component" />
+    </Transition>
+  </RouterView>
 </template>

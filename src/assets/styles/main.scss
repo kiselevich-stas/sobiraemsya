@@ -223,6 +223,10 @@ a {
   font-weight: 800;
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, opacity 0.18s ease;
 
+  position: relative;
+  overflow: hidden;
+
+
   &:not(:disabled):active {
     transform: scale(0.98);
   }
@@ -251,6 +255,20 @@ a {
     color: #ffffff;
     background: var(--danger);
   }
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.18);
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+
+  &:not(:disabled):hover::after {
+    opacity: 1;
+  }
+
 }
 
 .template-grid {
@@ -804,4 +822,23 @@ select:focus {
     font-size: 12px;
     line-height: 1.45;
   }
+}
+
+
+//animations
+.page-transition-enter-active,
+.page-transition-leave-active {
+  transition:
+          opacity 0.22s ease,
+          transform 0.22s ease;
+}
+
+.page-transition-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-transition-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
