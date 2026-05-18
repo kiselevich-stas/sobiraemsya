@@ -1,10 +1,18 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
+
 import App from '@/App.vue';
 import { router } from '@/router';
 import { useEventsStore } from '@/stores/events.store';
-import { getTelegramStartParam } from '@/utils/telegramStartParam';
+import {
+    getTelegramStartParam,
+    isTelegramLaunchUrl,
+} from '@/utils/telegramStartParam';
+
 import '@/assets/styles/main.scss';
+
+const initialTelegramEventId = getTelegramStartParam();
+const initialIsTelegramLaunchUrl = isTelegramLaunchUrl();
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -14,15 +22,23 @@ app.use(router);
 
 useEventsStore(pinia).hydrate();
 
-const telegramStartParam = getTelegramStartParam();
+router.isReady().then(() => {
+    if (initialTelegramEventId) {
+        router.replace({
+            name: 'event',
+            params: {
+                id: initialTelegramEventId,
+            },
+        });
 
-if (telegramStartParam) {
-    router.replace({
-        name: 'event',
-        params: {
-            id: telegramStartParam,
-        },
-    });
-}
+        return;
+    }
+
+    if (initialIsTelegramLaunchUrl || router.currentRoute.value.name === 'not-found') {
+        router.replace({
+            name: 'home',
+        });
+    }
+});
 
 app.mount('#app');
