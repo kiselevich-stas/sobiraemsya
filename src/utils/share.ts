@@ -36,28 +36,37 @@ export const decodeEventSnapshot = (snapshot: string): EventData | null => {
   }
 };
 
-export const createShareUrl = (
-    event: EventData,
-    options: { includeSnapshot?: boolean } = {},
-) => {
-  const fallbackPath = `/#/event/${event.id}`;
+export const createSiteEventUrl = (eventId: string) => {
+  return `${window.location.origin}/#/event/${eventId}`;
+};
 
-  if (options.includeSnapshot) {
-    const snapshot = encodeEventSnapshot(event);
-
-    return `${window.location.origin}${fallbackPath}?data=${snapshot}`;
-  }
-
+export const createTelegramEventUrl = (eventId: string) => {
   const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME?.trim();
   const appShortName = import.meta.env.VITE_TELEGRAM_APP_SHORT_NAME?.trim();
 
-  if (botUsername && appShortName) {
-    const normalizedBotUsername = botUsername.replace('@', '');
-
-    return `https://t.me/${normalizedBotUsername}/${appShortName}?startapp=${encodeURIComponent(event.id)}`;
+  if (!botUsername || !appShortName) {
+    return createSiteEventUrl(eventId);
   }
 
-  return `${window.location.origin}${fallbackPath}`;
+  const normalizedBotUsername = botUsername.replace('@', '');
+
+  return `https://t.me/${normalizedBotUsername}/${appShortName}?startapp=${encodeURIComponent(eventId)}`;
+};
+
+export const createShareUrl = (
+    event: EventData,
+    options: { includeSnapshot?: boolean; telegram?: boolean } = {},
+) => {
+  if (options.includeSnapshot) {
+    const snapshot = encodeEventSnapshot(event);
+    return `${createSiteEventUrl(event.id)}?data=${snapshot}`;
+  }
+
+  if (options.telegram) {
+    return createTelegramEventUrl(event.id);
+  }
+
+  return createSiteEventUrl(event.id);
 };
 
 export const generateEventCard = (event: EventData, eventUrl: string) => {
