@@ -11,7 +11,6 @@ import ItemsSection from '@/components/ItemsSection.vue';
 import MoneySection from '@/components/MoneySection.vue';
 import ParticipantsSection from '@/components/ParticipantsSection.vue';
 import SummaryCard from '@/components/SummaryCard.vue';
-import SyncStatusBanner from '@/components/SyncStatusBanner.vue';
 import { useEventRealtime } from '@/composables/useEventRealtime';
 import { useTelegramWebApp } from '@/composables/useTelegramWebApp';
 import { useEventsStore } from '@/stores/events.store';
@@ -22,7 +21,7 @@ import { createShareUrl, decodeEventSnapshot } from '@/utils/share';
 const route = useRoute();
 const router = useRouter();
 const eventsStore = useEventsStore();
-const { currentUser: telegramUser, isTelegram, showBackButton } = useTelegramWebApp();
+const { telegramUser, isTelegram, showBackButton } = useTelegramWebApp();
 const cleanupBackButton = ref<(() => void) | null>(null);
 const isLoadingEvent = ref(true);
 
