@@ -43,3 +43,39 @@ export const publishTelegramEventCard = async (
         error: null,
     };
 };
+
+export const syncTelegramEventCard = async (
+    eventId: string,
+): Promise<RepositoryResult<boolean>> => {
+    if (!isSupabaseConfigured || !supabase) {
+        return {
+            data: null,
+            error: 'Supabase не настроен, поэтому бот не может обновить карточку.',
+        };
+    }
+
+    const { data, error } = await supabase.functions.invoke('telegram-sync-card', {
+        body: {
+            eventId,
+        },
+    });
+
+    if (error) {
+        return {
+            data: null,
+            error: error.message,
+        };
+    }
+
+    if (!data?.ok) {
+        return {
+            data: null,
+            error: data?.error ?? 'Не удалось обновить карточку в Telegram.',
+        };
+    }
+
+    return {
+        data: true,
+        error: null,
+    };
+};

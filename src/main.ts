@@ -36,7 +36,7 @@ router.isReady().then(() => {
 
     if (initialTelegramPayload?.type === 'session') {
         router.replace({
-            name: 'create-event',
+            name: 'home',
             query: {
                 sessionId: initialTelegramPayload.id,
             },
