@@ -21,7 +21,11 @@ import { createShareUrl, decodeEventSnapshot } from '@/utils/share';
 const route = useRoute();
 const router = useRouter();
 const eventsStore = useEventsStore();
-const { telegramUser, isTelegram, showBackButton } = useTelegramWebApp();
+const {
+  currentUser: telegramUser,
+  isTelegram,
+  showBackButton,
+} = useTelegramWebApp();
 const cleanupBackButton = ref<(() => void) | null>(null);
 const isLoadingEvent = ref(true);
 

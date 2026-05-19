@@ -1,5 +1,6 @@
 import { computed } from 'vue';
 
+import type { CurrentUser } from '@/types/event';
 import type { TelegramWebApp, TelegramWebAppUser } from '@/types/telegram';
 
 const getTelegramWebApp = (): TelegramWebApp | null => {
@@ -10,6 +11,25 @@ const getTelegramWebApp = (): TelegramWebApp | null => {
   return window.Telegram?.WebApp ?? null;
 };
 
+const mapTelegramUserToCurrentUser = (
+    user: TelegramWebAppUser | undefined,
+): CurrentUser | null => {
+  if (!user) {
+    return null;
+  }
+
+  const name =
+      [user.first_name, user.last_name].filter(Boolean).join(' ') ||
+      user.username ||
+      `Пользователь ${user.id}`;
+
+  return {
+    id: String(user.id),
+    telegramId: user.id,
+    name,
+  };
+};
+
 export const useTelegramWebApp = () => {
   const webApp = computed(() => getTelegramWebApp());
 
@@ -17,8 +37,8 @@ export const useTelegramWebApp = () => {
     return Boolean(webApp.value);
   });
 
-  const telegramUser = computed<TelegramWebAppUser | null>(() => {
-    return webApp.value?.initDataUnsafe?.user ?? null;
+  const currentUser = computed<CurrentUser | null>(() => {
+    return mapTelegramUserToCurrentUser(webApp.value?.initDataUnsafe?.user);
   });
 
   const initTelegramApp = () => {
@@ -84,7 +104,7 @@ export const useTelegramWebApp = () => {
   return {
     webApp,
     isTelegram,
-    telegramUser,
+    currentUser,
     initTelegramApp,
     showMainButton,
     showBackButton,
