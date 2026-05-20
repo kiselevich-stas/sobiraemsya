@@ -18,3 +18,4 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
   : null;
 
 export const SUPABASE_EVENTS_TABLE = 'sobiraemsya_events';
+export const SUPABASE_USER_PROFILES_TABLE = 'sobiraemsya_user_profiles';
