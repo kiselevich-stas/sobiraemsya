@@ -14,7 +14,7 @@ import SummaryCard from '@/components/SummaryCard.vue';
 import { useEventRealtime } from '@/composables/useEventRealtime';
 import { useTelegramWebApp } from '@/composables/useTelegramWebApp';
 import { useEventsStore } from '@/stores/events.store';
-import type { CurrentUser, ItemStatus, ParticipantStatus } from '@/types/event';
+import type { CurrentUser, ParticipantStatus } from '@/types/event';
 import { formatMskDateTime } from '@/utils/format';
 import { decodeEventSnapshot } from '@/utils/share';
 
@@ -94,10 +94,6 @@ const assignItem = (itemId: string) => {
   }
 
   eventsStore.assignItem(eventId.value, itemId, activeUser.value);
-};
-
-const changeItemStatus = (itemId: string, status: ItemStatus) => {
-  eventsStore.setItemStatus(eventId.value, itemId, status);
 };
 
 const unassignItem = (itemId: string, userId: string) => {
@@ -211,10 +207,14 @@ onBeforeUnmount(() => {
           :current-user="activeUser || telegramUser"
           @assign="assignItem"
           @unassign="unassignItem"
-          @change-status="changeItemStatus"
       />
 
-      <MoneySection :event="event" @toggle-paid="togglePaid" @set-paid-amount="setPaidAmount" />
+      <MoneySection
+          :event="event"
+          :current-user="activeUser || telegramUser"
+          @toggle-paid="togglePaid"
+          @set-paid-amount="setPaidAmount"
+      />
 
       <SummaryCard :event="event" />
     </template>

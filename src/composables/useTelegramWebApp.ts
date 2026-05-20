@@ -109,6 +109,7 @@ export const useTelegramWebApp = () => {
 
     telegramWebApp.ready?.();
     telegramWebApp.expand?.();
+    telegramWebApp.disableVerticalSwipes?.();
   };
 
   const showMainButton = (text: string, onClick: () => void) => {

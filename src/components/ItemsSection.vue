@@ -2,7 +2,7 @@
 import AppButton from '@/components/AppButton.vue';
 import AppCard from '@/components/AppCard.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import type { CurrentUser, EventData, ItemStatus } from '@/types/event';
+import type { CurrentUser, EventData } from '@/types/event';
 import { itemStatusLabels } from '@/utils/format';
 
 const props = defineProps<{
@@ -13,7 +13,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   assign: [itemId: string];
   unassign: [itemId: string, userId: string];
-  changeStatus: [itemId: string, status: ItemStatus];
 }>();
 
 const getAssigneeNames = (item: EventData['items'][number]) => {
@@ -57,12 +56,6 @@ const isAssignedToCurrentUser = (item: EventData['items'][number]) => {
           </AppButton>
           <AppButton v-else variant="ghost" @click="emit('unassign', item.id, currentUser!.id)">
             Не беру
-          </AppButton>
-          <AppButton v-if="item.status === 'taken'" variant="secondary" @click="emit('changeStatus', item.id, 'done')">
-            Готово
-          </AppButton>
-          <AppButton v-if="item.status !== 'free'" variant="ghost" @click="emit('changeStatus', item.id, 'free')">
-            Освободить все
           </AppButton>
         </div>
       </article>

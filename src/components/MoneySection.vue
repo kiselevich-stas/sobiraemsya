@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
+import AppButton from '@/components/AppButton.vue';
 import AppCard from '@/components/AppCard.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import InfoBanner from '@/components/InfoBanner.vue';
-import type { EventData } from '@/types/event';
+import type { CurrentUser, EventData } from '@/types/event';
 import { getMoneyProgress, getPaidStats } from '@/utils/share';
 
 const props = defineProps<{
   event: EventData;
+  currentUser: CurrentUser | null;
 }>();
 
 const emit = defineEmits<{
@@ -15,10 +17,38 @@ const emit = defineEmits<{
   setPaidAmount: [participantId: string, amount: number];
 }>();
 
+const draftPaidAmount = ref('0');
+
 const paidStats = computed(() => getPaidStats(props.event.participants));
 const moneyProgress = computed(() => getMoneyProgress(props.event));
 const goingParticipants = computed(() => props.event.participants.filter((participant) => participant.status === 'going'));
+const sortedGoingParticipants = computed(() => {
+  const currentUserId = props.currentUser?.id;
+
+  if (!currentUserId) {
+    return goingParticipants.value;
+  }
+
+  return [...goingParticipants.value].sort((firstParticipant, secondParticipant) => {
+    if (firstParticipant.id === currentUserId) {
+      return -1;
+    }
+
+    if (secondParticipant.id === currentUserId) {
+      return 1;
+    }
+
+    return 0;
+  });
+});
 const isTotalMode = computed(() => props.event.money.mode === 'total');
+const currentParticipant = computed(() => {
+  if (!props.currentUser) {
+    return null;
+  }
+
+  return goingParticipants.value.find((participant) => participant.id === props.currentUser?.id) ?? null;
+});
 
 const moneyLabel = computed(() => {
   if (!props.event.money.amount) {
@@ -29,9 +59,31 @@ const moneyLabel = computed(() => {
   return `${props.event.money.amount} ${props.event.money.currency} · ${modeLabel}`;
 });
 
-const updatePaidAmount = (participantId: string, value: string) => {
-  emit('setPaidAmount', participantId, Number(value) || 0);
+const isCurrentParticipant = (participantId: string) => {
+  return Boolean(props.currentUser && participantId === props.currentUser.id);
 };
+
+const formatPaidAmount = (amount?: number) => {
+  return `${amount ?? 0} ${props.event.money.currency}`;
+};
+
+const saveOwnPaidAmount = () => {
+  if (!currentParticipant.value) {
+    return;
+  }
+
+  emit('setPaidAmount', currentParticipant.value.id, Number(draftPaidAmount.value) || 0);
+};
+
+watch(
+    currentParticipant,
+    (participant) => {
+      draftPaidAmount.value = String(participant?.paidAmount ?? 0);
+    },
+    {
+      immediate: true,
+    },
+);
 </script>
 
 <template>
@@ -64,21 +116,47 @@ const updatePaidAmount = (participantId: string, value: string) => {
     />
 
     <div v-if="goingParticipants.length" class="money-list">
-      <div v-for="participant in goingParticipants" :key="participant.id" class="money-row">
-        <span>{{ participant.name }}</span>
+      <div
+          v-for="participant in sortedGoingParticipants"
+          :key="participant.id"
+          class="money-row"
+          :class="{ 'money-row--own': isCurrentParticipant(participant.id) }"
+      >
+        <span>{{ participant.avatarEmoji || '🙂' }} {{ participant.name }}</span>
 
-        <label v-if="isTotalMode" class="money-row__amount">
-          <input
-              type="number"
-              min="0"
-              inputmode="numeric"
-              :value="participant.paidAmount ?? 0"
-              @input="updatePaidAmount(participant.id, ($event.target as HTMLInputElement).value)"
-          />
-          <span>{{ event.money.currency }}</span>
-        </label>
+        <div v-if="isTotalMode" class="money-row__controls">
+          <label v-if="isCurrentParticipant(participant.id)" class="money-row__amount">
+            <input
+                v-model="draftPaidAmount"
+                type="number"
+                min="0"
+                inputmode="numeric"
+            />
+            <span>{{ event.money.currency }}</span>
+          </label>
+          <span v-else class="money-row__readonly">{{ formatPaidAmount(participant.paidAmount) }}</span>
 
-        <input v-else type="checkbox" :checked="participant.hasPaid" @change="emit('togglePaid', participant.id)" />
+          <AppButton
+              v-if="isCurrentParticipant(participant.id)"
+              class="money-row__done-button"
+              variant="secondary"
+              aria-label="Сохранить сумму"
+              @click="saveOwnPaidAmount"
+          >
+            ✓
+          </AppButton>
+        </div>
+
+        <div v-else class="money-row__controls">
+          <AppButton
+              v-if="isCurrentParticipant(participant.id)"
+              :variant="participant.hasPaid ? 'ghost' : 'secondary'"
+              @click="emit('togglePaid', participant.id)"
+          >
+            {{ participant.hasPaid ? 'Отменить' : 'Готово' }}
+          </AppButton>
+          <span v-else class="money-row__readonly">{{ participant.hasPaid ? 'Скинулся' : 'Ждём' }}</span>
+        </div>
       </div>
     </div>
 

@@ -44,8 +44,8 @@ onMounted(() => {
   <main class="page">
     <AppHeader title="События" subtitle="Твои сборы и несколько последних карточек из приложения" />
 
-   <AppCard>
-     <section v-if="myEvents.length" class="events-list">
+   <AppCard v-if="myEvents.length">
+     <section class="events-list">
        <div class="section-heading">
          <div>
            <h2>Мои события</h2>
@@ -70,7 +70,7 @@ onMounted(() => {
    </AppCard>
 
     <EmptyState
-        v-if="!myEvents.length && !latestEvents.length"
+        v-if="!myEvents.length"
         emoji="🗂️"
         title="Пока нет событий"
         text="Создай первый сбор, и он появится здесь."
