@@ -2,8 +2,10 @@ import { createRouter, createWebHashHistory } from 'vue-router';
 
 import CreateEventView from '@/views/CreateEventView.vue';
 import EventView from '@/views/EventView.vue';
+import EventsView from '@/views/EventsView.vue';
 import HomeView from '@/views/HomeView.vue';
 import NotFoundView from '@/views/NotFoundView.vue';
+import ProfileView from '@/views/ProfileView.vue';
 
 export const router = createRouter({
   history: createWebHashHistory(),
@@ -18,6 +20,16 @@ export const router = createRouter({
       path: '/create',
       name: 'create-event',
       component: CreateEventView,
+    },
+    {
+      path: '/events',
+      name: 'events',
+      component: EventsView,
+    },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: ProfileView,
     },
     {
       path: '/event/:id/edit',

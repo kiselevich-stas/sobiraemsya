@@ -4,6 +4,7 @@ import {
   deleteRemoteEvent,
   fetchRemoteEventById,
   fetchRemoteEventsByCreator,
+  fetchRemoteLatestEvents,
   isRemoteStorageEnabled,
   saveRemoteEvent,
 } from '@/services/events.repository';
@@ -54,6 +55,7 @@ const createEventItems = (items: string[], existingItems: EventItem[] = []): Eve
           id: createId('item'),
           title: item,
           status: 'free' as ItemStatus,
+          assignees: [],
         };
       });
 };
@@ -65,8 +67,10 @@ const createParticipant = (user: CurrentUser, status: ParticipantStatus): EventP
     id: user.id,
     telegramId: user.telegramId,
     name: user.name,
+    avatarEmoji: user.avatarEmoji,
     status,
     hasPaid: false,
+    paidAmount: 0,
     joinedAt: now,
     updatedAt: now,
   };
@@ -114,6 +118,14 @@ export const useEventsStore = defineStore('events', {
             }),
         );
       };
+    },
+
+    latestEvents: (state) => {
+      return [...state.events]
+          .sort((firstEvent, secondEvent) => {
+            return new Date(secondEvent.createdAt).getTime() - new Date(firstEvent.createdAt).getTime();
+          })
+          .slice(0, 6);
     },
 
     isRemoteEnabled: () => isRemoteStorageEnabled(),
@@ -311,6 +323,34 @@ export const useEventsStore = defineStore('events', {
       return this.getEventsByCreator(user);
     },
 
+    async loadLatestEvents(limit = 6) {
+      this.hydrate();
+
+      if (!isRemoteStorageEnabled()) {
+        return this.latestEvents;
+      }
+
+      this.isSyncing = true;
+      this.syncError = null;
+
+      const result = await fetchRemoteLatestEvents(limit);
+
+      this.isSyncing = false;
+
+      if (result.error) {
+        this.syncError = result.error;
+        return this.latestEvents;
+      }
+
+      result.data?.forEach((event) => {
+        this.importEvent(event);
+      });
+
+      this.lastSyncedAt = new Date().toISOString();
+
+      return this.latestEvents;
+    },
+
     async syncEvent(eventId: string, options: SyncEventOptions = {}) {
       if (!isRemoteStorageEnabled()) {
         return;
@@ -373,6 +413,7 @@ export const useEventsStore = defineStore('events', {
 
       if (existingParticipant) {
         existingParticipant.name = user.name;
+        existingParticipant.avatarEmoji = user.avatarEmoji;
         existingParticipant.status = status;
         existingParticipant.updatedAt = now;
       } else {
@@ -380,6 +421,64 @@ export const useEventsStore = defineStore('events', {
       }
 
       event.updatedAt = now;
+      this.persist();
+
+      void this.syncEvent(event.id, {
+        syncTelegramCard: true,
+      });
+    },
+
+    syncUserProfile(eventId: string, user: CurrentUser) {
+      const event = this.getEventById(eventId);
+
+      if (!event) {
+        return;
+      }
+
+      const participant = event.participants.find((item) => {
+        return item.id === user.id;
+      });
+
+      let hasChanges = false;
+
+      if (participant && (participant.name !== user.name || participant.avatarEmoji !== user.avatarEmoji)) {
+        participant.name = user.name;
+        participant.avatarEmoji = user.avatarEmoji;
+        participant.updatedAt = new Date().toISOString();
+        hasChanges = true;
+      }
+
+      event.items.forEach((item) => {
+        let shouldRefreshLegacyAssigneeName = false;
+
+        item.assignees?.forEach((assignee) => {
+          if (assignee.id !== user.id) {
+            return;
+          }
+
+          if (assignee.name !== user.name || assignee.avatarEmoji !== user.avatarEmoji) {
+            assignee.name = user.name;
+            assignee.avatarEmoji = user.avatarEmoji;
+            shouldRefreshLegacyAssigneeName = true;
+            hasChanges = true;
+          }
+        });
+
+        if (item.assigneeId === user.id && item.assigneeName !== user.name && !item.assignees?.length) {
+          item.assigneeName = user.name;
+          hasChanges = true;
+        }
+
+        if (shouldRefreshLegacyAssigneeName && item.assignees?.length) {
+          item.assigneeName = item.assignees.map((assignee) => assignee.name).join(', ');
+        }
+      });
+
+      if (!hasChanges) {
+        return;
+      }
+
+      event.updatedAt = new Date().toISOString();
       this.persist();
 
       void this.syncEvent(event.id, {
@@ -408,6 +507,30 @@ export const useEventsStore = defineStore('events', {
       });
     },
 
+    setParticipantPaidAmount(eventId: string, participantId: string, paidAmount: number) {
+      const event = this.getEventById(eventId);
+      const participant = event?.participants.find((item) => {
+        return item.id === participantId;
+      });
+
+      if (!event || !participant) {
+        return;
+      }
+
+      const normalizedAmount = Math.max(0, Math.round(paidAmount));
+
+      participant.paidAmount = normalizedAmount;
+      participant.hasPaid = normalizedAmount > 0;
+      participant.updatedAt = new Date().toISOString();
+      event.updatedAt = participant.updatedAt;
+
+      this.persist();
+
+      void this.syncEvent(event.id, {
+        syncTelegramCard: true,
+      });
+    },
+
     assignItem(eventId: string, itemId: string, user: CurrentUser) {
       const event = this.getEventById(eventId);
       const item = event?.items.find((eventItem) => {
@@ -418,10 +541,52 @@ export const useEventsStore = defineStore('events', {
         return;
       }
 
-      item.status = 'taken';
-      item.assigneeId = user.id;
-      item.assigneeName = user.name;
+      const assignees = item.assignees ?? [];
+      const isAlreadyAssigned = assignees.some((assignee) => assignee.id === user.id);
+
+      if (!isAlreadyAssigned) {
+        assignees.push({
+          id: user.id,
+          name: user.name,
+          avatarEmoji: user.avatarEmoji,
+        });
+      }
+
+      item.assignees = assignees;
+      item.status = item.status === 'done' ? 'done' : 'taken';
+      item.assigneeId = assignees[0]?.id;
+      item.assigneeName = assignees.map((assignee) => assignee.name).join(', ');
       item.completedAt = undefined;
+      event.updatedAt = new Date().toISOString();
+
+      this.persist();
+
+      void this.syncEvent(event.id, {
+        syncTelegramCard: true,
+      });
+    },
+
+    unassignItem(eventId: string, itemId: string, userId: string) {
+      const event = this.getEventById(eventId);
+      const item = event?.items.find((eventItem) => {
+        return eventItem.id === itemId;
+      });
+
+      if (!event || !item) {
+        return;
+      }
+
+      const assignees = (item.assignees ?? []).filter((assignee) => assignee.id !== userId);
+
+      item.assignees = assignees;
+      item.assigneeId = assignees[0]?.id;
+      item.assigneeName = assignees.map((assignee) => assignee.name).join(', ') || undefined;
+
+      if (assignees.length === 0) {
+        item.status = 'free';
+        item.completedAt = undefined;
+      }
+
       event.updatedAt = new Date().toISOString();
 
       this.persist();
@@ -447,6 +612,7 @@ export const useEventsStore = defineStore('events', {
       if (status === 'free') {
         item.assigneeId = undefined;
         item.assigneeName = undefined;
+        item.assignees = [];
       }
 
       event.updatedAt = new Date().toISOString();

@@ -441,8 +441,6 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .create-event-page {
-  width: 100%;
-  max-width: 100%;
   overflow-x: hidden;
 }
 

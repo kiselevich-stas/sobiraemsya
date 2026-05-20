@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import AppButton from '@/components/AppButton.vue';
@@ -63,6 +63,22 @@ const syncActiveUser = (user: CurrentUser | null) => {
   activeUser.value = user;
 };
 
+watch(
+    telegramUser,
+    (user) => {
+      syncActiveUser(user);
+
+      if (!user || isLoadingEvent.value) {
+        return;
+      }
+
+      eventsStore.syncUserProfile(eventId.value, user);
+    },
+    {
+      immediate: true,
+    },
+);
+
 const saveParticipant = (user: CurrentUser, status: ParticipantStatus) => {
   syncActiveUser(user);
   eventsStore.upsertParticipant(eventId.value, user, status);
@@ -84,8 +100,16 @@ const changeItemStatus = (itemId: string, status: ItemStatus) => {
   eventsStore.setItemStatus(eventId.value, itemId, status);
 };
 
+const unassignItem = (itemId: string, userId: string) => {
+  eventsStore.unassignItem(eventId.value, itemId, userId);
+};
+
 const togglePaid = (participantId: string) => {
   eventsStore.toggleParticipantPayment(eventId.value, participantId);
+};
+
+const setPaidAmount = (participantId: string, amount: number) => {
+  eventsStore.setParticipantPaidAmount(eventId.value, participantId, amount);
 };
 
 const createOwnEvent = () => {
@@ -121,6 +145,7 @@ onMounted(async () => {
 
   if (telegramUser.value) {
     activeUser.value = telegramUser.value;
+    eventsStore.syncUserProfile(eventId.value, telegramUser.value);
   }
 
   subscribe();
@@ -185,10 +210,11 @@ onBeforeUnmount(() => {
           :event="event"
           :current-user="activeUser || telegramUser"
           @assign="assignItem"
+          @unassign="unassignItem"
           @change-status="changeItemStatus"
       />
 
-      <MoneySection :event="event" @toggle-paid="togglePaid" />
+      <MoneySection :event="event" @toggle-paid="togglePaid" @set-paid-amount="setPaidAmount" />
 
       <SummaryCard :event="event" />
     </template>

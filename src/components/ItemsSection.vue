@@ -5,15 +5,31 @@ import EmptyState from '@/components/EmptyState.vue';
 import type { CurrentUser, EventData, ItemStatus } from '@/types/event';
 import { itemStatusLabels } from '@/utils/format';
 
-defineProps<{
+const props = defineProps<{
   event: EventData;
   currentUser: CurrentUser | null;
 }>();
 
 const emit = defineEmits<{
   assign: [itemId: string];
+  unassign: [itemId: string, userId: string];
   changeStatus: [itemId: string, status: ItemStatus];
 }>();
+
+const getAssigneeNames = (item: EventData['items'][number]) => {
+  return item.assignees?.map((assignee) => assignee.name).join(', ') || item.assigneeName || '';
+};
+
+const isAssignedToCurrentUser = (item: EventData['items'][number]) => {
+  if (!props.currentUser) {
+    return false;
+  }
+
+  return Boolean(
+      item.assignees?.some((assignee) => assignee.id === props.currentUser?.id) ||
+      item.assigneeId === props.currentUser.id,
+  );
+};
 </script>
 
 <template>
@@ -31,19 +47,22 @@ const emit = defineEmits<{
           <h3>{{ item.title }}</h3>
           <p>
             {{ itemStatusLabels[item.status] }}
-            <span v-if="item.assigneeName"> · {{ item.assigneeName }}</span>
+            <span v-if="getAssigneeNames(item)"> · {{ getAssigneeNames(item) }}</span>
           </p>
         </div>
 
         <div class="item-card__actions">
-          <AppButton v-if="item.status === 'free'" variant="secondary" :disabled="!currentUser" @click="emit('assign', item.id)">
+          <AppButton v-if="!isAssignedToCurrentUser(item)" variant="secondary" :disabled="!currentUser" @click="emit('assign', item.id)">
             Взять
+          </AppButton>
+          <AppButton v-else variant="ghost" @click="emit('unassign', item.id, currentUser!.id)">
+            Не беру
           </AppButton>
           <AppButton v-if="item.status === 'taken'" variant="secondary" @click="emit('changeStatus', item.id, 'done')">
             Готово
           </AppButton>
           <AppButton v-if="item.status !== 'free'" variant="ghost" @click="emit('changeStatus', item.id, 'free')">
-            Освободить
+            Освободить все
           </AppButton>
         </div>
       </article>

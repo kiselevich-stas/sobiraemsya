@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import AppButton from '@/components/AppButton.vue';
 import AppCard from '@/components/AppCard.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import { useUserProfile } from '@/composables/useUserProfile';
 import type { CurrentUser, EventData, ParticipantStatus } from '@/types/event';
 import { participantStatusLabels } from '@/utils/format';
 
@@ -15,6 +16,7 @@ const emit = defineEmits<{
   save: [user: CurrentUser, status: ParticipantStatus];
 }>();
 
+const { avatarEmoji } = useUserProfile();
 const fallbackName = ref('');
 const selectedStatus = ref<ParticipantStatus>('going');
 
@@ -31,6 +33,7 @@ const currentUser = computed<CurrentUser | null>(() => {
   return {
     id: `guest_${trimmedName.toLowerCase().replaceAll(' ', '_')}`,
     name: trimmedName,
+    avatarEmoji: avatarEmoji.value,
   };
 });
 
@@ -86,7 +89,10 @@ const saveParticipant = () => {
 
     <div v-if="event.participants.length" class="participants-list">
       <div v-for="participant in event.participants" :key="participant.id" class="participant-row">
-        <span>{{ participant.name }}</span>
+        <span class="participant-row__person">
+          <span class="participant-row__avatar">{{ participant.avatarEmoji || '🙂' }}</span>
+          <span>{{ participant.name }}</span>
+        </span>
         <b>{{ participantStatusLabels[participant.status] }}</b>
       </div>
     </div>
@@ -99,4 +105,3 @@ const saveParticipant = () => {
     />
   </AppCard>
 </template>
-

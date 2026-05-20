@@ -1,5 +1,6 @@
 import { computed } from 'vue';
 
+import { useUserProfile } from '@/composables/useUserProfile';
 import type { CurrentUser } from '@/types/event';
 import type { TelegramWebApp, TelegramWebAppUser } from '@/types/telegram';
 
@@ -63,6 +64,7 @@ const mapTelegramUserToCurrentUser = (user: TelegramWebAppUser): CurrentUser => 
 };
 
 export const useTelegramWebApp = () => {
+  const { avatarEmoji, profile } = useUserProfile();
   const webApp = computed(() => getTelegramWebApp());
 
   const isTelegram = computed(() => {
@@ -74,11 +76,28 @@ export const useTelegramWebApp = () => {
   });
 
   const currentUser = computed<CurrentUser | null>(() => {
+    const profileName = profile.value.displayName.trim();
+
     if (telegramUser.value) {
-      return mapTelegramUserToCurrentUser(telegramUser.value);
+      const user = mapTelegramUserToCurrentUser(telegramUser.value);
+
+      return {
+        ...user,
+        avatarEmoji: avatarEmoji.value,
+      };
     }
 
-    return getWebFallbackUser();
+    const fallbackUser = getWebFallbackUser();
+
+    if (!fallbackUser) {
+      return null;
+    }
+
+    return {
+      ...fallbackUser,
+      name: profileName || fallbackUser.name,
+      avatarEmoji: avatarEmoji.value,
+    };
   });
 
   const initTelegramApp = () => {

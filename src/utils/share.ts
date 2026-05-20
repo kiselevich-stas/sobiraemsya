@@ -18,6 +18,21 @@ export const getPaidStats = (participants: EventData['participants']) => {
   };
 };
 
+export const getMoneyProgress = (event: EventData) => {
+  const targetAmount = event.money.amount ?? 0;
+  const collectedAmount = event.participants.reduce((sum, participant) => {
+    const perPersonAmount = participant.hasPaid && event.money.mode === 'per_person' ? targetAmount : 0;
+
+    return sum + (participant.paidAmount ?? perPersonAmount);
+  }, 0);
+
+  return {
+    collectedAmount,
+    targetAmount,
+    progressPercent: targetAmount > 0 ? Math.min(100, Math.round((collectedAmount / targetAmount) * 100)) : 0,
+  };
+};
+
 export const encodeEventSnapshot = (event: EventData) => {
   const jsonValue = JSON.stringify(event);
   const encodedValue = encodeURIComponent(jsonValue);
@@ -101,7 +116,13 @@ export const generateEventCard = (event: EventData, eventUrl: string) => {
     const moneyLabel = event.money.mode === 'per_person' ? 'с человека' : 'общий сбор';
 
     lines.push(`Сбор: ${event.money.amount} ${event.money.currency} ${moneyLabel}`);
-    lines.push(`Скинулись: ${paidStats.paid}/${paidStats.total}`);
+
+    if (event.money.mode === 'total') {
+      const moneyProgress = getMoneyProgress(event);
+      lines.push(`Собрано: ${moneyProgress.collectedAmount}/${moneyProgress.targetAmount} ${event.money.currency}`);
+    } else {
+      lines.push(`Скинулись: ${paidStats.paid}/${paidStats.total}`);
+    }
   }
 
   lines.push('', 'Кто что берёт:');
@@ -110,12 +131,13 @@ export const generateEventCard = (event: EventData, eventUrl: string) => {
     lines.push('— пока список пуст');
   } else {
     event.items.forEach((item) => {
+      const assigneeNames = item.assignees?.map((assignee) => assignee.name).join(', ');
       const value =
           item.status === 'free'
               ? 'свободно'
               : item.status === 'done'
                   ? 'готово'
-                  : item.assigneeName || 'взято';
+                  : assigneeNames || item.assigneeName || 'взято';
 
       lines.push(`— ${item.title}: ${value}`);
     });

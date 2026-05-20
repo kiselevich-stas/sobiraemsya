@@ -20,15 +20,24 @@ export interface EventItem {
   status: ItemStatus;
   assigneeId?: string;
   assigneeName?: string;
+  assignees?: EventItemAssignee[];
   completedAt?: string;
+}
+
+export interface EventItemAssignee {
+  id: string;
+  name: string;
+  avatarEmoji?: string;
 }
 
 export interface EventParticipant {
   id: string;
   telegramId?: number;
   name: string;
+  avatarEmoji?: string;
   status: ParticipantStatus;
   hasPaid: boolean;
+  paidAmount?: number;
   joinedAt: string;
   updatedAt: string;
 }
@@ -45,6 +54,7 @@ export interface CurrentUser {
   telegramId?: number;
   username?: string;
   name: string;
+  avatarEmoji?: string;
 }
 
 export interface EventData {

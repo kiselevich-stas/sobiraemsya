@@ -64,7 +64,7 @@ a {
 }
 
 .page {
-  width: min(100%, var(--page-max-width));
+  width: min(100%, var(--page-max-width)) !important;
   min-height: 100vh;
   margin: 0 auto;
   padding: max(18px, env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));
@@ -83,6 +83,13 @@ a {
   display: grid;
   gap: 20px;
   margin-bottom: 18px;
+
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
 
   &__brand {
     display: inline-flex;
@@ -106,6 +113,38 @@ a {
     place-items: center;
     border-radius: 50%;
     background: var(--primary-soft);
+  }
+
+  &__nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 8px 12px;
+      border: 1px solid var(--stroke);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.7);
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    a.router-link-active {
+      border-color: rgba(42, 171, 238, 0.28);
+      background: var(--primary-soft);
+      color: var(--primary-dark);
+    }
+  }
+
+  &__profile-link {
+    width: 38px;
+    padding: 0;
+    font-size: 18px;
   }
 
   &__content {
@@ -595,6 +634,23 @@ select:focus {
   }
 }
 
+.participant-row__person {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.participant-row__avatar {
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--primary-soft);
+}
+
 .money-row {
   cursor: pointer;
 
@@ -602,6 +658,55 @@ select:focus {
     width: 24px;
     height: 24px;
     accent-color: var(--primary);
+  }
+}
+
+.money-row__amount {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-weight: 800;
+
+  input {
+    width: 92px;
+    height: 38px;
+    padding: 0 10px;
+    border: 1px solid var(--stroke);
+    border-radius: 12px;
+    background: #ffffff;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: right;
+    accent-color: var(--primary);
+  }
+}
+
+.money-progress {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+
+  &__bar {
+    height: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.08);
+
+    span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--primary), #17a66a);
+      transition: width 0.2s ease;
+    }
+  }
+
+  p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 750;
   }
 }
 
