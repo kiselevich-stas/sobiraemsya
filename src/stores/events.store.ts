@@ -1,5 +1,13 @@
 import { defineStore } from 'pinia';
 
+import {
+  deleteRemoteEvent,
+  fetchRemoteEventById,
+  fetchRemoteEventsByCreator,
+  isRemoteStorageEnabled,
+  saveRemoteEvent,
+} from '@/services/events.repository';
+import { syncTelegramEventCard } from '@/services/telegram.repository';
 import type {
   CreateEventPayload,
   CurrentUser,
@@ -11,13 +19,6 @@ import type {
 } from '@/types/event';
 import { createId } from '@/utils/id';
 import { loadEventsFromStorage, saveEventsToStorage } from '@/utils/storage';
-import {
-  deleteRemoteEvent,
-  fetchRemoteEventById,
-  isRemoteStorageEnabled,
-  saveRemoteEvent,
-} from '@/services/events.repository';
-import { syncTelegramEventCard } from '@/services/telegram.repository';
 
 interface EventsState {
   events: EventData[];
@@ -31,21 +32,33 @@ type SyncEventOptions = {
   syncTelegramCard?: boolean;
 };
 
-const createEventItems = (items: string[]): EventItem[] => {
+const createEventItems = (items: string[], existingItems: EventItem[] = []): EventItem[] => {
+  const existingItemsByTitle = new Map(
+      existingItems.map((item) => [item.title.trim().toLowerCase(), item]),
+  );
+
   return items
       .map((item) => item.trim())
       .filter(Boolean)
-      .map((item) => ({
-        id: createId('item'),
-        title: item,
-        status: 'free' as ItemStatus,
-      }));
+      .map((item) => {
+        const existingItem = existingItemsByTitle.get(item.toLowerCase());
+
+        if (existingItem) {
+          return {
+            ...existingItem,
+            title: item,
+          };
+        }
+
+        return {
+          id: createId('item'),
+          title: item,
+          status: 'free' as ItemStatus,
+        };
+      });
 };
 
-const createParticipant = (
-    user: CurrentUser,
-    status: ParticipantStatus,
-): EventParticipant => {
+const createParticipant = (user: CurrentUser, status: ParticipantStatus): EventParticipant => {
   const now = new Date().toISOString();
 
   return {
@@ -61,11 +74,16 @@ const createParticipant = (
 
 const sortEventsByUpdatedAt = (events: EventData[]) => {
   return [...events].sort((firstEvent, secondEvent) => {
-    return (
-        new Date(secondEvent.updatedAt).getTime() -
-        new Date(firstEvent.updatedAt).getTime()
-    );
+    return new Date(secondEvent.updatedAt).getTime() - new Date(firstEvent.updatedAt).getTime();
   });
+};
+
+const getCreatorTelegramUserId = (user?: CurrentUser | null) => {
+  if (!user) {
+    return undefined;
+  }
+
+  return user.telegramId ? String(user.telegramId) : user.id;
 };
 
 export const useEventsStore = defineStore('events', {
@@ -79,8 +97,23 @@ export const useEventsStore = defineStore('events', {
 
   getters: {
     getEventById: (state) => {
-      return (eventId: string) =>
-          state.events.find((event) => event.id === eventId) ?? null;
+      return (eventId: string) => state.events.find((event) => event.id === eventId) ?? null;
+    },
+
+    getEventsByCreator: (state) => {
+      return (user?: CurrentUser | null) => {
+        const creatorTelegramUserId = getCreatorTelegramUserId(user);
+
+        if (!creatorTelegramUserId) {
+          return [];
+        }
+
+        return sortEventsByUpdatedAt(
+            state.events.filter((event) => {
+              return event.creatorTelegramUserId === creatorTelegramUserId;
+            }),
+        );
+      };
     },
 
     isRemoteEnabled: () => isRemoteStorageEnabled(),
@@ -101,8 +134,20 @@ export const useEventsStore = defineStore('events', {
       saveEventsToStorage(this.events);
     },
 
-    async createEvent(payload: CreateEventPayload) {
+    isEventCreator(eventId: string, user?: CurrentUser | null) {
+      const event = this.getEventById(eventId);
+      const creatorTelegramUserId = getCreatorTelegramUserId(user);
+
+      if (!event || !creatorTelegramUserId) {
+        return false;
+      }
+
+      return event.creatorTelegramUserId === creatorTelegramUserId;
+    },
+
+    async createEvent(payload: CreateEventPayload, creator?: CurrentUser | null) {
       const now = new Date().toISOString();
+      const creatorTelegramUserId = getCreatorTelegramUserId(creator);
 
       const event: EventData = {
         id: createId('event'),
@@ -111,6 +156,11 @@ export const useEventsStore = defineStore('events', {
         startsAt: payload.startsAt || undefined,
         place: payload.place?.trim() || undefined,
         description: payload.description?.trim() || undefined,
+
+        creatorTelegramUserId,
+        creatorTelegramUsername: creator?.username,
+        creatorName: creator?.name,
+
         money: {
           enabled: payload.money.enabled,
           mode: payload.money.mode,
@@ -126,11 +176,58 @@ export const useEventsStore = defineStore('events', {
       this.events.unshift(event);
       this.persist();
 
-      // При создании только сохраняем событие в Supabase.
-      // Telegram-карточку публикует отдельная функция telegram-publish-card.
       await this.syncEvent(event.id);
 
       return event;
+    },
+
+    async updateEvent(
+        eventId: string,
+        payload: CreateEventPayload,
+        editor?: CurrentUser | null,
+    ) {
+      const event = this.getEventById(eventId);
+
+      if (!event) {
+        return {
+          data: null,
+          error: 'Событие не найдено.',
+        };
+      }
+
+      if (!this.isEventCreator(eventId, editor)) {
+        return {
+          data: null,
+          error: 'Редактировать событие может только создатель карточки.',
+        };
+      }
+
+      const now = new Date().toISOString();
+
+      event.title = payload.title.trim();
+      event.templateId = payload.templateId;
+      event.startsAt = payload.startsAt || undefined;
+      event.place = payload.place?.trim() || undefined;
+      event.description = payload.description?.trim() || undefined;
+      event.money = {
+        enabled: payload.money.enabled,
+        mode: payload.money.mode,
+        amount: payload.money.enabled ? payload.money.amount : null,
+        currency: payload.money.currency,
+      };
+      event.items = createEventItems(payload.items, event.items);
+      event.updatedAt = now;
+
+      this.persist();
+
+      await this.syncEvent(event.id, {
+        syncTelegramCard: true,
+      });
+
+      return {
+        data: event,
+        error: null,
+      };
     },
 
     importEvent(event: EventData, options: { persistRemote?: boolean } = {}) {
@@ -167,7 +264,6 @@ export const useEventsStore = defineStore('events', {
 
       if (result.error) {
         this.syncError = result.error;
-
         return this.getEventById(eventId);
       }
 
@@ -179,6 +275,40 @@ export const useEventsStore = defineStore('events', {
       }
 
       return this.getEventById(eventId);
+    },
+
+    async loadMyEvents(user?: CurrentUser | null) {
+      this.hydrate();
+
+      const creatorTelegramUserId = getCreatorTelegramUserId(user);
+
+      if (!creatorTelegramUserId) {
+        return [];
+      }
+
+      if (!isRemoteStorageEnabled()) {
+        return this.getEventsByCreator(user);
+      }
+
+      this.isSyncing = true;
+      this.syncError = null;
+
+      const result = await fetchRemoteEventsByCreator(creatorTelegramUserId);
+
+      this.isSyncing = false;
+
+      if (result.error) {
+        this.syncError = result.error;
+        return this.getEventsByCreator(user);
+      }
+
+      result.data?.forEach((event) => {
+        this.importEvent(event);
+      });
+
+      this.lastSyncedAt = new Date().toISOString();
+
+      return this.getEventsByCreator(user);
     },
 
     async syncEvent(eventId: string, options: SyncEventOptions = {}) {
@@ -201,7 +331,6 @@ export const useEventsStore = defineStore('events', {
 
       if (result.error) {
         this.syncError = result.error;
-
         return;
       }
 
@@ -229,11 +358,7 @@ export const useEventsStore = defineStore('events', {
       }
     },
 
-    upsertParticipant(
-        eventId: string,
-        user: CurrentUser,
-        status: ParticipantStatus,
-    ) {
+    upsertParticipant(eventId: string, user: CurrentUser, status: ParticipantStatus) {
       const event = this.getEventById(eventId);
 
       if (!event) {
@@ -255,7 +380,6 @@ export const useEventsStore = defineStore('events', {
       }
 
       event.updatedAt = now;
-
       this.persist();
 
       void this.syncEvent(event.id, {

@@ -3,6 +3,8 @@ import { computed } from 'vue';
 import type { CurrentUser } from '@/types/event';
 import type { TelegramWebApp, TelegramWebAppUser } from '@/types/telegram';
 
+const WEB_USER_STORAGE_KEY = 'sobiraemsya_web_user_id';
+
 const getTelegramWebApp = (): TelegramWebApp | null => {
   if (typeof window === 'undefined') {
     return null;
@@ -11,22 +13,52 @@ const getTelegramWebApp = (): TelegramWebApp | null => {
   return window.Telegram?.WebApp ?? null;
 };
 
-const mapTelegramUserToCurrentUser = (
-    user: TelegramWebAppUser | undefined,
-): CurrentUser | null => {
-  if (!user) {
+const createWebUserId = () => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `web_${crypto.randomUUID()}`;
+  }
+
+  return `web_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+};
+
+const getWebFallbackUser = (): CurrentUser | null => {
+  if (typeof window === 'undefined') {
     return null;
   }
 
-  const name =
-      [user.first_name, user.last_name].filter(Boolean).join(' ') ||
-      user.username ||
-      `Пользователь ${user.id}`;
+  let userId = window.localStorage.getItem(WEB_USER_STORAGE_KEY);
 
+  if (!userId) {
+    userId = createWebUserId();
+    window.localStorage.setItem(WEB_USER_STORAGE_KEY, userId);
+  }
+
+  return {
+    id: userId,
+    name: 'Гость',
+  };
+};
+
+const getTelegramUserName = (user: TelegramWebAppUser) => {
+  const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
+
+  if (fullName) {
+    return fullName;
+  }
+
+  if (user.username) {
+    return `@${user.username}`;
+  }
+
+  return `Пользователь ${user.id}`;
+};
+
+const mapTelegramUserToCurrentUser = (user: TelegramWebAppUser): CurrentUser => {
   return {
     id: String(user.id),
     telegramId: user.id,
-    name,
+    username: user.username,
+    name: getTelegramUserName(user),
   };
 };
 
@@ -37,8 +69,16 @@ export const useTelegramWebApp = () => {
     return Boolean(webApp.value);
   });
 
+  const telegramUser = computed(() => {
+    return webApp.value?.initDataUnsafe?.user ?? null;
+  });
+
   const currentUser = computed<CurrentUser | null>(() => {
-    return mapTelegramUserToCurrentUser(webApp.value?.initDataUnsafe?.user);
+    if (telegramUser.value) {
+      return mapTelegramUserToCurrentUser(telegramUser.value);
+    }
+
+    return getWebFallbackUser();
   });
 
   const initTelegramApp = () => {
@@ -52,10 +92,7 @@ export const useTelegramWebApp = () => {
     telegramWebApp.expand?.();
   };
 
-  const showMainButton = (
-      text: string,
-      onClick: () => void,
-  ) => {
+  const showMainButton = (text: string, onClick: () => void) => {
     const telegramWebApp = getTelegramWebApp();
     const mainButton = telegramWebApp?.MainButton;
 
@@ -104,6 +141,7 @@ export const useTelegramWebApp = () => {
   return {
     webApp,
     isTelegram,
+    telegramUser,
     currentUser,
     initTelegramApp,
     showMainButton,

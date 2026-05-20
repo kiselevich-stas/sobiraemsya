@@ -14,3 +14,8 @@ defineProps<{
     <slot />
   </div>
 </template>
+<style scoped lang="scss">
+.empty-state{
+  margin-top: 1rem;
+}
+</style>

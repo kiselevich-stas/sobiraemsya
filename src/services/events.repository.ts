@@ -7,65 +7,167 @@ export interface RepositoryResult<T> {
   error: string | null;
 }
 
-const getMissingConfigError = () => 'Supabase не настроен: приложение работает только через localStorage.';
+const getMissingConfigError = () => {
+  return 'Supabase не настроен: приложение работает только через localStorage.';
+};
 
-export const isRemoteStorageEnabled = () => isSupabaseConfigured && Boolean(supabase);
+export const isRemoteStorageEnabled = () => {
+  return isSupabaseConfigured && Boolean(supabase);
+};
 
-export const saveRemoteEvent = async (event: EventData): Promise<RepositoryResult<EventData>> => {
+const normalizeRemoteEvent = (row: SupabaseEventRow): EventData => {
+  return {
+    ...row.payload,
+    id: row.id,
+    startsAt: row.payload.startsAt ?? row.starts_at ?? undefined,
+    creatorTelegramUserId:
+        row.payload.creatorTelegramUserId ?? row.creator_telegram_user_id ?? undefined,
+    creatorTelegramUsername:
+        row.payload.creatorTelegramUsername ?? row.creator_telegram_username ?? undefined,
+    sourceChatId: row.payload.sourceChatId ?? row.source_chat_id ?? undefined,
+    sourceChatTitle: row.payload.sourceChatTitle ?? row.source_chat_title ?? undefined,
+    createdAt: row.payload.createdAt ?? row.created_at,
+    updatedAt: row.payload.updatedAt ?? row.updated_at,
+  };
+};
+
+export const saveRemoteEvent = async (
+    event: EventData,
+): Promise<RepositoryResult<EventData>> => {
   if (!supabase) {
-    return { data: null, error: getMissingConfigError() };
+    return {
+      data: null,
+      error: getMissingConfigError(),
+    };
   }
 
   const now = new Date().toISOString();
 
-  const { data, error } = await supabase
-    .from(SUPABASE_EVENTS_TABLE)
-    .upsert(
-      {
-        id: event.id,
-        payload: event,
-        updated_at: now,
-      },
-      { onConflict: 'id' },
-    )
-    .select('payload')
-    .single<SupabaseEventRow>();
-
-  if (error) {
-    return { data: null, error: error.message };
-  }
-
-  return { data: data?.payload ?? event, error: null };
-};
-
-export const fetchRemoteEventById = async (eventId: string): Promise<RepositoryResult<EventData>> => {
-  if (!supabase) {
-    return { data: null, error: getMissingConfigError() };
-  }
+  const eventToSave: EventData = {
+    ...event,
+    updatedAt: event.updatedAt || now,
+  };
 
   const { data, error } = await supabase
-    .from(SUPABASE_EVENTS_TABLE)
-    .select('payload')
-    .eq('id', eventId)
-    .maybeSingle<SupabaseEventRow>();
+      .from(SUPABASE_EVENTS_TABLE)
+      .upsert(
+          {
+            id: eventToSave.id,
+            payload: eventToSave,
+            creator_telegram_user_id: eventToSave.creatorTelegramUserId ?? null,
+            creator_telegram_username: eventToSave.creatorTelegramUsername ?? null,
+            source_chat_id: eventToSave.sourceChatId ?? null,
+            source_chat_title: eventToSave.sourceChatTitle ?? null,
+            starts_at: eventToSave.startsAt ?? null,
+            updated_at: now,
+          },
+          {
+            onConflict: 'id',
+          },
+      )
+      .select(
+          'id,payload,creator_telegram_user_id,creator_telegram_username,source_chat_id,source_chat_title,starts_at,created_at,updated_at',
+      )
+      .single();
 
   if (error) {
-    return { data: null, error: error.message };
+    return {
+      data: null,
+      error: error.message,
+    };
   }
 
-  return { data: data?.payload ?? null, error: null };
+  return {
+    data: data ? normalizeRemoteEvent(data as SupabaseEventRow) : eventToSave,
+    error: null,
+  };
 };
 
-export const deleteRemoteEvent = async (eventId: string): Promise<RepositoryResult<boolean>> => {
+export const fetchRemoteEventById = async (
+    eventId: string,
+): Promise<RepositoryResult<EventData>> => {
   if (!supabase) {
-    return { data: null, error: getMissingConfigError() };
+    return {
+      data: null,
+      error: getMissingConfigError(),
+    };
+  }
+
+  const { data, error } = await supabase
+      .from(SUPABASE_EVENTS_TABLE)
+      .select(
+          'id,payload,creator_telegram_user_id,creator_telegram_username,source_chat_id,source_chat_title,starts_at,created_at,updated_at',
+      )
+      .eq('id', eventId)
+      .maybeSingle();
+
+  if (error) {
+    return {
+      data: null,
+      error: error.message,
+    };
+  }
+
+  return {
+    data: data ? normalizeRemoteEvent(data as SupabaseEventRow) : null,
+    error: null,
+  };
+};
+
+export const fetchRemoteEventsByCreator = async (
+    creatorTelegramUserId: string,
+): Promise<RepositoryResult<EventData[]>> => {
+  if (!supabase) {
+    return {
+      data: null,
+      error: getMissingConfigError(),
+    };
+  }
+
+  const { data, error } = await supabase
+      .from(SUPABASE_EVENTS_TABLE)
+      .select(
+          'id,payload,creator_telegram_user_id,creator_telegram_username,source_chat_id,source_chat_title,starts_at,created_at,updated_at',
+      )
+      .eq('creator_telegram_user_id', creatorTelegramUserId)
+      .order('created_at', {
+        ascending: false,
+      });
+
+  if (error) {
+    return {
+      data: null,
+      error: error.message,
+    };
+  }
+
+  return {
+    data: (data ?? []).map((row) => normalizeRemoteEvent(row as SupabaseEventRow)),
+    error: null,
+  };
+};
+
+export const deleteRemoteEvent = async (
+    eventId: string,
+): Promise<RepositoryResult<boolean>> => {
+  if (!supabase) {
+    return {
+      data: null,
+      error: getMissingConfigError(),
+    };
   }
 
   const { error } = await supabase.from(SUPABASE_EVENTS_TABLE).delete().eq('id', eventId);
 
   if (error) {
-    return { data: null, error: error.message };
+    return {
+      data: null,
+      error: error.message,
+    };
   }
 
-  return { data: true, error: null };
+  return {
+    data: true,
+    error: null,
+  };
 };

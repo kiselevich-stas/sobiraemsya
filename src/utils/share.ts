@@ -1,4 +1,5 @@
 import type { EventData } from '@/types/event';
+import { formatMskDateTime } from '@/utils/format';
 
 export const getParticipantStats = (participants: EventData['participants']) => {
   return {
@@ -27,7 +28,11 @@ export const encodeEventSnapshot = (event: EventData) => {
 export const decodeEventSnapshot = (snapshot: string): EventData | null => {
   try {
     const normalizedSnapshot = snapshot.replaceAll('-', '+').replaceAll('_', '/');
-    const paddedSnapshot = normalizedSnapshot.padEnd(Math.ceil(normalizedSnapshot.length / 4) * 4, '=');
+    const paddedSnapshot = normalizedSnapshot.padEnd(
+        Math.ceil(normalizedSnapshot.length / 4) * 4,
+        '=',
+    );
+
     const jsonValue = decodeURIComponent(atob(paddedSnapshot));
 
     return JSON.parse(jsonValue) as EventData;
@@ -50,7 +55,9 @@ export const createTelegramEventUrl = (eventId: string) => {
 
   const normalizedBotUsername = botUsername.replace('@', '');
 
-  return `https://t.me/${normalizedBotUsername}/${appShortName}?startapp=${encodeURIComponent(eventId)}`;
+  return `https://t.me/${normalizedBotUsername}/${appShortName}?startapp=${encodeURIComponent(
+      eventId,
+  )}`;
 };
 
 export const createShareUrl = (
@@ -59,6 +66,7 @@ export const createShareUrl = (
 ) => {
   if (options.includeSnapshot) {
     const snapshot = encodeEventSnapshot(event);
+
     return `${createSiteEventUrl(event.id)}?data=${snapshot}`;
   }
 
@@ -72,6 +80,7 @@ export const createShareUrl = (
 export const generateEventCard = (event: EventData, eventUrl: string) => {
   const participantStats = getParticipantStats(event.participants);
   const paidStats = getPaidStats(event.participants);
+
   const lines = [`Собираемся: ${event.title}`];
 
   if (event.startsAt || event.place) {
@@ -79,12 +88,7 @@ export const generateEventCard = (event: EventData, eventUrl: string) => {
   }
 
   if (event.startsAt) {
-    lines.push(`Когда: ${new Intl.DateTimeFormat('ru-RU', {
-      day: '2-digit',
-      month: 'long',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(event.startsAt))}`);
+    lines.push(`Когда: ${formatMskDateTime(event.startsAt)}`);
   }
 
   if (event.place) {
@@ -95,6 +99,7 @@ export const generateEventCard = (event: EventData, eventUrl: string) => {
 
   if (event.money.enabled && event.money.amount) {
     const moneyLabel = event.money.mode === 'per_person' ? 'с человека' : 'общий сбор';
+
     lines.push(`Сбор: ${event.money.amount} ${event.money.currency} ${moneyLabel}`);
     lines.push(`Скинулись: ${paidStats.paid}/${paidStats.total}`);
   }
@@ -105,7 +110,13 @@ export const generateEventCard = (event: EventData, eventUrl: string) => {
     lines.push('— пока список пуст');
   } else {
     event.items.forEach((item) => {
-      const value = item.status === 'free' ? 'свободно' : item.status === 'done' ? 'готово' : item.assigneeName || 'взято';
+      const value =
+          item.status === 'free'
+              ? 'свободно'
+              : item.status === 'done'
+                  ? 'готово'
+                  : item.assigneeName || 'взято';
+
       lines.push(`— ${item.title}: ${value}`);
     });
   }

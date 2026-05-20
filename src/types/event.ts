@@ -1,6 +1,9 @@
 export type ParticipantStatus = 'going' | 'maybe' | 'not_going';
+
 export type ItemStatus = 'free' | 'taken' | 'done';
+
 export type Currency = '₽' | '$' | '€' | 'TON' | 'USDT';
+
 export type MoneyMode = 'total' | 'per_person';
 
 export interface EventTemplate {
@@ -37,6 +40,13 @@ export interface EventMoneySettings {
   currency: Currency;
 }
 
+export interface CurrentUser {
+  id: string;
+  telegramId?: number;
+  username?: string;
+  name: string;
+}
+
 export interface EventData {
   id: string;
   title: string;
@@ -44,9 +54,18 @@ export interface EventData {
   startsAt?: string;
   place?: string;
   description?: string;
+
+  creatorTelegramUserId?: string;
+  creatorTelegramUsername?: string;
+  creatorName?: string;
+
+  sourceChatId?: string;
+  sourceChatTitle?: string;
+
   money: EventMoneySettings;
   items: EventItem[];
   participants: EventParticipant[];
+
   createdAt: string;
   updatedAt: string;
 }
@@ -59,10 +78,4 @@ export interface CreateEventPayload {
   description?: string;
   money: EventMoneySettings;
   items: string[];
-}
-
-export interface CurrentUser {
-  id: string;
-  telegramId?: number;
-  name: string;
 }

@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
+
 import CreateEventView from '@/views/CreateEventView.vue';
 import EventView from '@/views/EventView.vue';
 import HomeView from '@/views/HomeView.vue';
@@ -6,6 +7,7 @@ import NotFoundView from '@/views/NotFoundView.vue';
 
 export const router = createRouter({
   history: createWebHashHistory(),
+
   routes: [
     {
       path: '/',
@@ -15,6 +17,11 @@ export const router = createRouter({
     {
       path: '/create',
       name: 'create-event',
+      component: CreateEventView,
+    },
+    {
+      path: '/event/:id/edit',
+      name: 'edit-event',
       component: CreateEventView,
     },
     {
@@ -28,7 +35,4 @@ export const router = createRouter({
       component: NotFoundView,
     },
   ],
-  scrollBehavior() {
-    return { top: 0 };
-  },
 });
