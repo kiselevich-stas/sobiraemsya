@@ -10,16 +10,16 @@
     "test:logic": "node tests/share-card.test.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
     "@vitejs/plugin-vue": "^5.2.1",
+    "pinia": "^3.0.1",
     "vite": "^6.2.0",
     "vue": "^3.5.13",
-    "vue-router": "^4.5.0",
-    "pinia": "^3.0.1",
-    "@supabase/supabase-js": "^2.49.4"
+    "vue-router": "^4.5.0"
   },
   "devDependencies": {
+    "sass": "^1.85.1",
     "typescript": "^5.8.2",
-    "vue-tsc": "^2.2.8",
-    "sass": "^1.85.1"
+    "vue-tsc": "^2.2.8"
   }
 }

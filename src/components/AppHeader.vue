@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useUserProfile } from '@/composables/useUserProfile';
+import UserAvatar from "@/components/UserAvatar.vue";
 
 defineProps<{
   title: string;
@@ -20,7 +21,7 @@ const { avatarEmoji } = useUserProfile();
       <nav class="app-header__nav" aria-label="Основная навигация">
         <RouterLink to="/events">События</RouterLink>
         <RouterLink class="app-header__profile-link" to="/profile" aria-label="Профиль">
-          {{ avatarEmoji }}
+          <UserAvatar :avatar-emoji="avatarEmoji" :size="24" />
         </RouterLink>
       </nav>
     </div>
@@ -31,3 +32,8 @@ const { avatarEmoji } = useUserProfile();
     </div>
   </header>
 </template>
+<style scoped lang="scss">
+.app-header__profile-link{
+  padding:0 ;
+}
+</style>

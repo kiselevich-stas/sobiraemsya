@@ -437,6 +437,7 @@ select:focus {
   display: inline-flex;
   width: 58px;
   height: 34px;
+  flex-shrink: 0;
 
   input {
     position: absolute;

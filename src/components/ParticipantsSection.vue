@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import AppButton from '@/components/AppButton.vue';
 import AppCard from '@/components/AppCard.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import UserAvatar from '@/components/UserAvatar.vue';
 import { useUserProfile } from '@/composables/useUserProfile';
 import type { CurrentUser, EventData, ParticipantStatus } from '@/types/event';
 import { participantStatusLabels } from '@/utils/format';
@@ -90,7 +91,7 @@ const saveParticipant = () => {
     <div v-if="event.participants.length" class="participants-list">
       <div v-for="participant in event.participants" :key="participant.id" class="participant-row">
         <span class="participant-row__person">
-          <span class="participant-row__avatar">{{ participant.avatarEmoji || '🙂' }}</span>
+          <UserAvatar :avatar-emoji="participant.avatarEmoji" :size="34" />
           <span>{{ participant.name }}</span>
         </span>
         <b>{{ participantStatusLabels[participant.status] }}</b>

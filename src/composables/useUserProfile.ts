@@ -1,47 +1,17 @@
 import { computed, ref } from 'vue';
 import {
-  fetchRemoteUserProfile,
-  upsertRemoteUserProfile,
-} from '@/services/userProfiles.repository';
+  avatarEmojiOptions,
+  avatarOptions,
+  defaultAvatarEmoji,
+  isKnownAvatarEmoji,
+} from '@/data/avatarOptions';
 import type { CurrentUser } from '@/types/event';
 import type { UserProfile } from '@/types/profile';
 import { loadProfileFromStorage, saveProfileToStorage } from '@/utils/storage';
 
-export const avatarEmojiOptions = [
-  '😀',
-  '😎',
-  '🥳',
-  '🤠',
-  '😇',
-  '🤝',
-  '🔥',
-  '🍕',
-  '🎉',
-  '🏃‍♂️',
-  '🏃‍♀️',
-  '🧑‍💻',
-  '🙋‍♂️',
-  '🙋‍♀️',
-  '🐱',
-  '🐶',
-] as const;
-
 const defaultProfile: UserProfile = {
   displayName: '',
-  avatarEmoji: avatarEmojiOptions[0],
-};
-
-const isKnownAvatarEmoji = (emoji: string) => {
-  return avatarEmojiOptions.includes(emoji as (typeof avatarEmojiOptions)[number]);
-};
-
-const normalizeProfile = (nextProfile: UserProfile): UserProfile => {
-  return {
-    displayName: nextProfile.displayName.trim(),
-    avatarEmoji: isKnownAvatarEmoji(nextProfile.avatarEmoji)
-        ? nextProfile.avatarEmoji
-        : defaultProfile.avatarEmoji,
-  };
+  avatarEmoji: defaultAvatarEmoji,
 };
 
 const profile = ref<UserProfile>({
@@ -57,74 +27,31 @@ const isProfileSyncing = ref(false);
 const profileSyncError = ref<string | null>(null);
 
 export const useUserProfile = () => {
-  const saveLocalProfile = (nextProfile: UserProfile) => {
-    const normalizedProfile = normalizeProfile(nextProfile);
+  const saveProfile = async (
+      nextProfile: UserProfile,
+      _user?: CurrentUser | null,
+  ) => {
+    const normalizedProfile: UserProfile = {
+      displayName: nextProfile.displayName.trim(),
+      avatarEmoji: isKnownAvatarEmoji(nextProfile.avatarEmoji)
+          ? nextProfile.avatarEmoji
+          : defaultProfile.avatarEmoji,
+    };
 
     profile.value = normalizedProfile;
     saveProfileToStorage(normalizedProfile);
 
-    return normalizedProfile;
+    return {
+      data: normalizedProfile,
+      error: null,
+    };
   };
 
-  const hydrateProfileFromRemote = async (user: CurrentUser | null) => {
-    if (!user) {
-      return;
-    }
-
-    isProfileSyncing.value = true;
+  const hydrateProfileFromRemote = async (_user?: CurrentUser | null) => {
     profileSyncError.value = null;
-
-    const result = await fetchRemoteUserProfile(user);
-
-    isProfileSyncing.value = false;
-
-    if (result.error) {
-      profileSyncError.value = result.error;
-      return;
-    }
-
-    if (!result.data) {
-      return;
-    }
-
-    saveLocalProfile(result.data);
-  };
-
-  const saveProfile = async (
-      nextProfile: UserProfile,
-      user?: CurrentUser | null,
-  ) => {
-    const normalizedProfile = saveLocalProfile(nextProfile);
-
-    if (!user) {
-      return {
-        data: normalizedProfile,
-        error: null,
-      };
-    }
-
-    isProfileSyncing.value = true;
-    profileSyncError.value = null;
-
-    const result = await upsertRemoteUserProfile(user, normalizedProfile);
-
-    isProfileSyncing.value = false;
-
-    if (result.error) {
-      profileSyncError.value = result.error;
-
-      return {
-        data: normalizedProfile,
-        error: result.error,
-      };
-    }
-
-    if (result.data) {
-      saveLocalProfile(result.data);
-    }
 
     return {
-      data: result.data ?? normalizedProfile,
+      data: profile.value,
       error: null,
     };
   };
@@ -136,6 +63,7 @@ export const useUserProfile = () => {
   return {
     avatarEmoji,
     avatarEmojiOptions,
+    avatarOptions,
     hydrateProfileFromRemote,
     isProfileSyncing,
     profile,
